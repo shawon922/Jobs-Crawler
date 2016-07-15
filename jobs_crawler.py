@@ -9,44 +9,32 @@ import requests
 from bs4 import BeautifulSoup
 import csv
 
-#Initialize a global variable to count total jobs
-totalJobs = 0
 
 #Define a function to write into file
 #Function starts from here
-def writeCsvFile(data):
-	#'global' keyword for using the variable initialized outside the function
-	global totalJobs
+def write_csv_file(data):
+    #'global' keyword for using the variable initialized outside the function
+    
+    """job_title_text = data['job_title_text']
+    company_name = data['company_name']
+    education = data['education']
+    experience = data['experience']
+    deadline = data['deadline']
+    job_link = data['job_link']"""
 
+    #Writing into the csv file
+    try:        
+        csv_writer.writerow({'Job Title': data['job_title_text'], 'Company Name': data['company_name'], 'Education': data['education'], 'Experience': data['experience'], 'Deadline': data['deadline'], 'Job Link': data['job_link']})
+    except:
+        print('Exception occurred! No problem. Keep going.')
 
-	for dt in data:
-		#Fetching desired content using its tag and class
-
-		jobTitle = dt.find('div', {'class': 'job-title-text'})
-		jobLink = mainSite + jobTitle.find('a', {'href': True})['href']
-
-		jobTitleText = jobTitle.text.strip()
-		companyName = dt.find('div', {'class': 'comp-name-text'}).text.strip()
-		education = dt.find('div', {'class': 'edu-text-d'}).text.strip()
-		experience = dt.find('div', {'class': 'exp-text-d'}).text.strip()
-		deadline = dt.find('div', {'class': 'dead-text-d'}).text.strip()
-
-		#Writing into the csv file
-		try:
-			csvWriter.writerow([jobTitleText, companyName, education, experience, deadline, jobLink])
-		except:
-			print('Exception occurred! No problem. Keep going.')
-		
-
-		#Couting total jobs
-		totalJobs += 1
 #Function ends here
 
 #Open a csv file with 'write' mode
-jobListFileObj = open('job-list.csv', 'w', newline='')
+job_list_file_obj = open('job-list.csv', 'w', newline='')
 
 
-mainSite = 'http://jobs.bdjobs.com/'
+main_site = 'http://jobs.bdjobs.com/'
 
 #Job search url
 url = 'http://jobs.bdjobs.com/jobsearch.asp?fcatId=8'
@@ -56,77 +44,88 @@ url = 'http://jobs.bdjobs.com/jobsearch.asp?fcatId=8'
 #'pg' for 'Pagination'. Value is 1 by default.
 #Other keys are not being used
 
-postData = { 'Country': '0', 
-		 'MPostings': '',
-		 'Newspaper': '0',
-		 'fcat': '8',
-		 'hidJobSearch': 'JobSearch',
-		 'hidOrder': '',
-		 'iCat': '0',
-		 'pg': '1',
-		 'qAge': '0',
-		 'qDeadline': '0',
-		 'qExp': '0',
-		 'qJobLevel': '0',
-		 'qJobNature': '0',
-		 'qJobSpecialSkill': '-1',
-		 'qOT': '0',
-		 'qPosted': '0',
-		 'txtsearch': '',
-		 'ver': ''
-		}
+post_data = { 'Country': '0', 
+         'MPostings': '',
+         'Newspaper': '0',
+         'fcat': '8',
+         'hidJobSearch': 'JobSearch',
+         'hidOrder': '',
+         'iCat': '0',
+         'pg': '1',
+         'qAge': '0',
+         'qDeadline': '0',
+         'qExp': '0',
+         'qJobLevel': '0',
+         'qJobNature': '0',
+         'qJobSpecialSkill': '-1',
+         'qOT': '0',
+         'qPosted': '0',
+         'txtsearch': '',
+         'ver': ''
+        }
 
 
-columnNames = ['Job Title', 'Company Name', 'Education', 'Experience', 'Deadline', 'Job Link']
+column_names = ['Job Title', 'Company Name', 'Education', 'Experience', 'Deadline', 'Job Link']
 
 #Creating csv writer
-csvWriter = csv.writer(jobListFileObj)
+csv_writer = csv.DictWriter(job_list_file_obj, fieldnames=column_names)
 
-#Write column name
-csvWriter.writerow(columnNames)
-csvWriter.writerow([''])
+#Write column name 
+csv_writer.writeheader()
 
-#post request
-resp = requests.post(url, data=postData)
+csv_writer.writerow({'Job Title': '', 'Company Name': '', 'Education': '', 'Experience': '', 'Deadline': '', 'Job Link': ''})
 
-#send response to BeautifulSoup
-html = BeautifulSoup(resp.content, 'html.parser') 
+#At least 1 page should be available
+page_no = 1
+max_page_no = 1
 
-data = html.find_all('div', {'class': 'norm-jobs-wrapper'})
-maxPageNo = html.find('div', {'id': 'topPagging'}).find_all('li')[-1].text.strip().replace('.', '')
+#Total jobs counting
+total_jobs = 0
 
+while page_no <= max_page_no:
+    print('Page No : {0}'.format(page_no))
 
-#Calling the writeCsvFile function
-writeCsvFile(data)
+    #Assign new page no.
+    post_data['pg'] = page_no
 
-maxPageNo = int(maxPageNo)
+    resp = requests.post(url, data=post_data)
 
-print('Page No : 1')
+    html = BeautifulSoup(resp.content, 'html.parser')
 
-pageNo = 2
+    data = html.find_all('div', {'class': 'norm-jobs-wrapper'})
 
-while pageNo <= maxPageNo:
-	print('Page No : {0}'.format(pageNo))
-	
-	#Assign new page no.
-	postData['pg'] = pageNo
+    if page_no == 1:
+        max_page_no = html.find('div', {'id': 'topPagging'}).find_all('li')[-1].text.strip().replace('.', '')
+        max_page_no = int(max_page_no)
 
-	resp = requests.post(url, data=postData)
+    for dt in data:
+        #A dictionary to pass data to function
+        data_dict = {};
 
-	html = BeautifulSoup(resp.content, 'html.parser')
+        #Fetching desired content using its tag and class
 
-	data = html.find_all('div', {'class': 'norm-jobs-wrapper'})
+        job_title = dt.find('div', {'class': 'job-title-text'})
+        data_dict['job_link'] = main_site + job_title.find('a', {'href': True})['href']
 
-	#Calling the writeCsvFile function
-	writeCsvFile(data)
-	
-	#Increment page no.
-	pageNo += 1
+        data_dict['job_title_text'] = job_title.text.strip()
+        data_dict['company_name'] = dt.find('div', {'class': 'comp-name-text'}).text.strip()
+        data_dict['education'] = dt.find('div', {'class': 'edu-text-d'}).text.strip()
+        data_dict['experience'] = dt.find('div', {'class': 'exp-text-d'}).text.strip()
+        data_dict['deadline'] = dt.find('div', {'class': 'dead-text-d'}).text.strip()
 
-jobListFileObj.close()
+        #Calling the write_csv_file function
+        write_csv_file(data_dict)
+
+        #Increment of total_jobs
+        total_jobs += 1
+
+    #Increment page no.
+    page_no += 1
+
+job_list_file_obj.close()
 
 print('Successfully completed!')
 
 #Total jobs
-print('Total Job : {0}'.format(totalJobs))
+print('Total Job : {0}'.format(total_jobs))
 
